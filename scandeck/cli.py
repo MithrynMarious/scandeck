@@ -170,6 +170,16 @@ def cmd_worktree(args, store: SessionStore):
             print("No stale worktrees found.")
 
 
+def cmd_watch(args, store: SessionStore):
+    from .notify import watch_sessions
+    watch_sessions(
+        store,
+        interval=args.interval,
+        stuck_timeout=args.stuck_timeout,
+        desktop=not args.no_desktop,
+    )
+
+
 def cmd_serve(args, store: SessionStore):
     from .mcp_server import run_stdio
     run_stdio()
@@ -207,6 +217,15 @@ def main():
     sp.add_argument("--hours", type=float, default=24.0,
                     help="Remove finished sessions older than N hours (default: 24)")
 
+    # watch
+    sp = sub.add_parser("watch", help="Watch sessions and notify on state changes")
+    sp.add_argument("--interval", type=float, default=5.0,
+                    help="Seconds between polls (default: 5)")
+    sp.add_argument("--stuck-timeout", type=float, default=30.0,
+                    help="Minutes before a session is marked stuck (default: 30)")
+    sp.add_argument("--no-desktop", action="store_true",
+                    help="Disable desktop notifications (CLI output only)")
+
     # serve
     sub.add_parser("serve", help="Run MCP server on stdin/stdout")
 
@@ -241,6 +260,7 @@ def main():
         "register": cmd_register,
         "complete": cmd_complete,
         "prune": cmd_prune,
+        "watch": cmd_watch,
         "serve": cmd_serve,
         "worktree": cmd_worktree,
         "wt": cmd_worktree,
