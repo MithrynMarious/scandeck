@@ -32,3 +32,12 @@ scandeck = "scandeck.cli:main"
 Homepage = "https://github.com/MithrynMarious/scandeck"
 Repository = "https://github.com/MithrynMarious/scandeck"
 Issues = "https://github.com/MithrynMarious/scandeck/issues"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.hatch.build.targets.sdist]
+include = ["scandeck/", "LICENSE", "README.md"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["scandeck"]
