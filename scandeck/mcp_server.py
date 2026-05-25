@@ -92,6 +92,52 @@ TOOLS = [
         },
     },
     {
+        "name": "session_who_else",
+        "description": "Find other running sessions on the same repo/branch. Advisory only.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "repo": {
+                    "type": "string",
+                    "description": "Repository path to check",
+                },
+                "branch": {
+                    "type": "string",
+                    "description": "Branch name (optional, narrows match)",
+                    "default": "",
+                },
+            },
+            "required": ["repo"],
+        },
+    },
+    {
+        "name": "session_conflicts",
+        "description": "Detect potential conflicts: multiple agents on the same repo/branch or files.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {},
+        },
+    },
+    {
+        "name": "session_track_files",
+        "description": "Report which files this session is currently modifying. Used for file-level conflict detection.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "session_id": {
+                    "type": "string",
+                    "description": "Session ID",
+                },
+                "files": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "List of file paths being modified",
+                },
+            },
+            "required": ["session_id", "files"],
+        },
+    },
+    {
         "name": "worktree_list",
         "description": "List git worktrees for a repository.",
         "inputSchema": {
@@ -195,6 +241,27 @@ class MCPServer:
             elif name == "session_list":
                 sessions = self.store.list_sessions(status=args.get("status"))
                 return self._tool_result(msg_id, json.dumps(sessions, indent=2, default=str))
+
+            elif name == "session_who_else":
+                from .coordination import find_overlapping_sessions
+                matches = find_overlapping_sessions(
+                    self.store, args["repo"], args.get("branch", ""),
+                )
+                return self._tool_result(msg_id, json.dumps(matches, indent=2, default=str))
+
+            elif name == "session_conflicts":
+                from .coordination import detect_conflicts, detect_file_conflicts
+                repo_conflicts = detect_conflicts(self.store)
+                file_conflicts = detect_file_conflicts(self.store)
+                result = {"repo_conflicts": repo_conflicts, "file_conflicts": file_conflicts}
+                return self._tool_result(msg_id, json.dumps(result, indent=2, default=str))
+
+            elif name == "session_track_files":
+                from .coordination import update_file_tracking
+                ok = update_file_tracking(self.store, args["session_id"], args["files"])
+                if ok:
+                    return self._tool_result(msg_id, f"Tracking {len(args['files'])} files for {args['session_id']}")
+                return self._tool_result(msg_id, f"Session not found: {args['session_id']}", is_error=True)
 
             elif name == "worktree_list":
                 from .worktree import list_worktrees

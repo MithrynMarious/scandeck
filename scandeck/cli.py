@@ -180,6 +180,52 @@ def cmd_watch(args, store: SessionStore):
     )
 
 
+def cmd_conflicts(args, store: SessionStore):
+    from .coordination import detect_conflicts, detect_file_conflicts
+    repo_conflicts = detect_conflicts(store)
+    file_conflicts = detect_file_conflicts(store)
+
+    if args.json:
+        print(json.dumps({"repo_conflicts": repo_conflicts, "file_conflicts": file_conflicts},
+                         indent=2, default=str))
+        return
+
+    if not repo_conflicts and not file_conflicts:
+        print("No conflicts detected.")
+        return
+
+    if repo_conflicts:
+        print(f"{BOLD}Repo/Branch Conflicts:{RESET}")
+        for c in repo_conflicts:
+            risk_color = RED if c["risk"] == "high" else YELLOW
+            print(f"  {risk_color}{c['risk'].upper()}{RESET}  {c['target']}")
+            for s in c["sessions"]:
+                print(f"    {s['tool']} ({s['id']}) {DIM}{s['summary']}{RESET}")
+        print()
+
+    if file_conflicts:
+        print(f"{BOLD}File Conflicts:{RESET}")
+        for c in file_conflicts:
+            print(f"  {RED}{c['file']}{RESET}")
+            for s in c["sessions"]:
+                print(f"    {s['tool']} ({s['session_id']})")
+
+
+def cmd_proxy(args, store: SessionStore):
+    from .proxy import run_proxy
+    run_proxy(port=args.port, repo_path=args.repo)
+
+
+def cmd_tray(args, store: SessionStore):
+    from .tray import run_tray
+    run_tray(store)
+
+
+def cmd_launch(args, store: SessionStore):
+    from .launcher import run_launcher
+    run_launcher(store, scan_paths=args.scan, editor=args.editor)
+
+
 def cmd_serve(args, store: SessionStore):
     from .mcp_server import run_stdio
     run_stdio()
@@ -226,6 +272,25 @@ def main():
     sp.add_argument("--no-desktop", action="store_true",
                     help="Disable desktop notifications (CLI output only)")
 
+    # conflicts
+    sp = sub.add_parser("conflicts", help="Detect multi-agent conflicts")
+    sp.add_argument("--json", action="store_true", help="JSON output")
+
+    # proxy
+    sp = sub.add_parser("proxy", help="Branch-aware reverse proxy")
+    sp.add_argument("--port", type=int, default=8400,
+                    help="Proxy listen port (default: 8400)")
+    sp.add_argument("--repo", help="Repository with .scandeck.json (default: cwd)")
+
+    # tray
+    sub.add_parser("tray", help="System tray icon (requires pystray + pillow)")
+
+    # launch
+    sp = sub.add_parser("launch", help="Interactive workspace launcher")
+    sp.add_argument("--scan", nargs="*", help="Directories to scan for git repos")
+    sp.add_argument("--editor", default="code",
+                    help="Editor to open (code, cursor, claude, vim, nvim)")
+
     # serve
     sub.add_parser("serve", help="Run MCP server on stdin/stdout")
 
@@ -261,6 +326,10 @@ def main():
         "complete": cmd_complete,
         "prune": cmd_prune,
         "watch": cmd_watch,
+        "conflicts": cmd_conflicts,
+        "proxy": cmd_proxy,
+        "tray": cmd_tray,
+        "launch": cmd_launch,
         "serve": cmd_serve,
         "worktree": cmd_worktree,
         "wt": cmd_worktree,

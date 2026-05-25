@@ -25,6 +25,9 @@ classifiers = [
     "Topic :: Software Development :: Version Control :: Git",
 ]
 
+[project.optional-dependencies]
+tray = ["pystray>=0.19", "pillow>=10.0"]
+
 [project.scripts]
 scandeck = "scandeck.cli:main"
 
